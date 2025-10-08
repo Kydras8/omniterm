@@ -1,4 +1,0 @@
-Kydras OmniTerm God-mode
-User: $USER
-Host: $(hostname)
-Kernel: $(uname -sr)
