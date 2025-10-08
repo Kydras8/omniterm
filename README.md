@@ -20,3 +20,10 @@ Zsh-first terminal upgrade for Kali/Debian with tmux session, stealth toggles, a
 ### Desktop shortcut
     cp kydras-omninterm.desktop ~/Desktop/
     chmod +x ~/Desktop/kydras-omninterm.desktop
+
+## Demo (placeholder)
+<p align="center">
+  <img src="assets/demo.gif" alt="OmniTerm demo (placeholder)" width="720"/>
+</p>
+
+> To regenerate the demo GIF locally, run: `./scripts/record_demo.sh` (requires asciinema + agg).
