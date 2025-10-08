@@ -1,34 +1,44 @@
 name: omniterm-release
+
 on:
   push:
-    tags: [ 'v*' ]
+    tags:
+      - 'v*'
+
 permissions:
   contents: write
+
 jobs:
-  build-release:
+  build-and-release:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Package release zip
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up environment
         run: |
-          set -e
-          TAG="${GITHUB_REF_NAME}"
+          sudo apt-get update -y
+          sudo apt-get install -y zsh tmux bash coreutils make debhelper zip
+
+      - name: Build .deb package
+        run: |
+          make clean
+          make deb
+          echo "Built .deb file:"
+          ls -lh dist/*.deb || true
+
+      - name: Build zip artifact
+        run: |
           mkdir -p dist
-          ZIP="dist/omniterm-${TAG}.zip"
-          zip -r "$ZIP" \
-            kyboost bin .zshrc.kydras .tmux.conf.kydras assets \
-            thunar-open-omni.action kydras-omninterm.desktop \
-            kydras-omninterm-gnome.desktop kydras-omninterm-konsole.desktop \
-            README.md LICENSE 2>/dev/null || true
-          sha256sum "$ZIP" > dist/SHA256SUMS.txt
-          echo "ZIP=$ZIP" >> $GITHUB_ENV
-      - name: Publish GitHub Release
+          zip -r "dist/omniterm-${GITHUB_REF_NAME}.zip" kyboost assets install.sh uninstall.sh README.md || true
+          ls -lh dist/*.zip || true
+
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ env.ZIP }}
-            dist/SHA256SUMS.txt
-          prerelease: false
-          draft: false
+            dist/*.deb
+            dist/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
