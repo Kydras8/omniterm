@@ -35,7 +35,7 @@ release:
 	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w
 	@git diff --quiet || (echo "[Kydras] Uncommitted changes present. Commit or stash before releasing."; exit 1)
 	@git fetch --all --tags
-	@git -c push.followTags=false push -u origin main || true
+	@git -c push.followTags=false push origin HEAD:refs/heads/main || true
 	@git tag -a $${TAG} -m "OmniTerm $${TAG}" || true
 	@git push origin $${TAG}
 	@# create or update the release notes
