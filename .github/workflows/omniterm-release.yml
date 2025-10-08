@@ -1,6 +1,11 @@
 name: omniterm-release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build (e.g. v1.0.12)
+        required: true
   push:
     tags:
       - 'v*'
@@ -14,7 +19,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}@v4
 
       - name: Set up deps
         run: |
@@ -24,7 +31,7 @@ jobs:
       - name: Build .deb & zip (version from tag)
         run: |
           set -e
-          VER="${GITHUB_REF_NAME#v}"
+          VER="${{ github.event.inputs.tag || github.ref_name }}"; VER="${VER#v}"
           echo "Version from tag: $VER"
           make clean
           make deb DEB_VERSION="$VER"
