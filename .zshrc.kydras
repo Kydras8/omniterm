@@ -1,0 +1,58 @@
+# = Kydras ~/.zshrc.kydras =
+# Cipher Notes: Safe to source from ~/.zshrc
+set -euo pipefail
+setopt NO_BANG_HIST
+export KYDRAS_HOME="${KYDRAS_HOME:-$HOME/.kydras}"
+export PATH="$HOME/.local/bin:$PATH"
+
+# Basic prompt: time, user@host, git branch
+autoload -Uz vcs_info
+precmd() { vcs_info }
+zstyle ':vcs_info:git:*' formats '(%b)'
+
+PROMPT='%F{yellow}%n@%m%f %F{cyan}%*%f %F{green}${vcs_info_msg_0_}%f %# '
+RPROMPT='%F{magenta} Kydras%f'
+
+# Aliases & helpers
+alias ll='ls -lah --color=auto'
+alias kygo='cd ~/OmniTerm || cd $HOME'
+alias kyc='clear; ky_banner'
+alias gpush='git add -A && git commit -m "[Kydras] update" || true && git push'
+alias kypush='gpush'
+
+# History hardening defaults (can be toggled by ky_stealth_on/off)
+HISTFILE="${HISTFILE:-$HOME/.zsh_history}"
+HISTSIZE=2000
+SAVEHIST=2000
+setopt append_history
+setopt share_history
+setopt extended_history
+
+# Simple masked env helper
+ky_export() {
+  # usage: ky_export SECRET_NAME SECRET_VALUE
+  if [[ $# -ne 2 ]]; then
+    echo "usage: ky_export NAME VALUE"
+    return 1
+  fi
+  read -s -p "Confirm export of $1? (y/N): " ans
+  echo
+  if [[ "$ans" == "y" || "$ans" == "Y" ]]; then
+    export $1="$2"
+    echo "Exported $1 (masked from history)."
+  else
+    echo "Aborted."
+  fi
+}
+
+# Banner
+ky_banner() {
+  if [[ -f "$KYDRAS_HOME/banner.txt" ]]; then
+    cat "$KYDRAS_HOME/banner.txt"
+  else
+    echo "Kydras OmniTerm - Cipher"
+  fi
+}
+
+# source local overrides
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"

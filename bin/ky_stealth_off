@@ -1,0 +1,13 @@
+#!/usr/bin/env zsh
+# ky_stealth_off - disable stealth
+set -euo pipefail
+if [[ -n "${_KY_OLD_PATH:-}" ]]; then
+  export PATH="$_KY_OLD_PATH"
+fi
+if [[ -n "${_KY_OLD_HISTFILE:-}" ]]; then
+  export HISTFILE="$_KY_OLD_HISTFILE"
+else
+  export HISTFILE="$HOME/.zsh_history"
+fi
+unset _KY_OLD_PATH _KY_OLD_HISTFILE
+echo "Kydras stealth: OFF"

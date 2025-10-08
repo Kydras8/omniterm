@@ -1,0 +1,3 @@
+#!/usr/bin/env zsh
+# kygo - quick nav
+cd ~/OmniTerm || cd "$HOME"

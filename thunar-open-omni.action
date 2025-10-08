@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Action
+Name=Open OmniTerm Here (Kydras)
+Icon=utilities-terminal
+Profiles=on_folder;
+
+[X-Action-Profile on_folder]
+Name=Open OmniTerm Here
+MimeTypes=inode/directory;
+Exec=xfce4-terminal -e "bash -lc 'cd %f; tmux attach -t omni || tmux new -s omni'"

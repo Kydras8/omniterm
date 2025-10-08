@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+# kyzip <project-dir> -> creates project.zip containing source + added kydras metadata
+set -euo pipefail
+proj=${1:-.}
+out="${proj##*/}.kydras.zip"
+zip -r "$out" "$proj" -x '*.git*' || true
+echo "Created $out"

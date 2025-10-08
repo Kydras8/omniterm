@@ -1,0 +1,15 @@
+# ~/.tmux.conf.kydras
+set -g mouse on
+setw -g automatic-rename off
+set -g history-limit 10000
+
+# Status bar
+set -g status-interval 2
+set -g status-left-length 60
+set -g status-right-length 150
+set -g status-left '#[fg=yellow]Kydras #[fg=white]| #[fg=cyan]#H'
+set -g status-right '#[fg=green]%Y-%m-%d %H:%M #[fg=white]| #[fg=magenta]#(whoami)'
+
+# quick bindings
+bind-key C-a send-prefix
+bind r source-file ~/.tmux.conf.kydras \; display "Reloaded Kydras tmux conf"

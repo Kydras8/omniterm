@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+# kypush - git commit & push with Kydras defaults
+set -euo pipefail
+msg=${1:-"[Kydras] autopush"}
+git add -A
+git commit -m "$msg" || true
+git push origin main || git push

@@ -1,0 +1,8 @@
+#!/usr/bin/env zsh
+# ky_stealth_on - enable stealth (temporary)
+set -euo pipefail
+export _KY_OLD_PATH="$PATH"
+export _KY_OLD_HISTFILE="${HISTFILE:-}"
+export HISTFILE=/dev/null
+export PATH="$HOME/.local/bin:$HOME/.local/sbin"
+echo "Kydras stealth: ON (HISTFILE=/dev/null, PATH narrowed)"
