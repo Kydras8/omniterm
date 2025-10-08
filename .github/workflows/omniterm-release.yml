@@ -1,55 +1,45 @@
 name: omniterm-release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag to build (e.g. v1.0.12)
-        required: true
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g. v1.0.12)'
+        required: true
 
 permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build-release:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}@v4
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Set up deps
+      - name: Set up GitHub CLI
+        run: sudo apt update && sudo apt install -y gh jq
+
+      - name: Import GPG key
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y zsh tmux bash coreutils make debhelper zip gnupg jq binutils
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
 
-      - name: Build .deb & zip (version from tag)
+      - name: Build .deb package
         run: |
           set -e
-          VER="${{ github.event.inputs.tag || github.ref_name }}"; VER="${VER#v}"
-          echo "Version from tag: $VER"
+          VER="${{ github.event.inputs.tag || github.ref_name }}"
+          VER="${VER#v}"
+          echo "Building version $VER"
           make clean
           make deb DEB_VERSION="$VER"
-          mkdir -p dist
-          zip -r "dist/omniterm-${VER}.zip" kyboost assets install.sh uninstall.sh README.md LICENSE 2>/dev/null || true
-          ls -lh dist
 
-      - name: Import GPG private key (if present)
-        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
-          gpg --list-secret-keys --keyid-format=long || true
-
-      - name: Sign .deb (dpkg-sig preferred; fallback debsigs)
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Sign .deb package
         run: |
           set -e
           if ! command -v dpkg-sig >/dev/null 2>&1; then
@@ -59,11 +49,7 @@ jobs:
           for DEB in dist/*.deb; do
             if command -v dpkg-sig >/dev/null 2>&1 && [ -n "$KEYID" ]; then
               echo "Signing with dpkg-sig key $KEYID -> $DEB"
-              if [ -n "${GPG_PASSPHRASE:-}" ]; then
-                printf '%s' "$GPG_PASSPHRASE" | dpkg-sig --sign builder -k "$KEYID" "$DEB" --passphrase-fd 0
-              else
-                dpkg-sig --sign builder -k "$KEYID" "$DEB"
-              fi
+              dpkg-sig --sign builder -k "$KEYID" "$DEB"
             elif command -v debsigs >/dev/null 2>&1 && [ -n "$KEYID" ]; then
               echo "Signing with debsigs key $KEYID -> $DEB"
               debsigs --sign=origin -k "$KEYID" "$DEB"
@@ -72,32 +58,26 @@ jobs:
             fi
           done
 
-      - name: Strict verify: fail if .deb not signed
+      - name: Strict verify
         run: |
           set -e
           DEB=$(ls dist/*.deb | head -n1)
-          echo "Verifying signature on $DEB"
+          echo "Verifying $DEB"
           if command -v dpkg-sig >/dev/null 2>&1; then
-            dpkg-sig --verify "$DEB" | tee /tmp/verify.txt || true
-            grep -q 'GOODSIG' /tmp/verify.txt || { echo "::error::dpkg-sig did not report GOODSIG"; exit 1; }
+            dpkg-sig --verify "$DEB" | tee /tmp/v.txt
+            grep -q 'GOODSIG' /tmp/v.txt || { echo "::error::dpkg-sig did not report GOODSIG"; exit 1; }
+          elif ar t "$DEB" | grep -q '_gpgorigin'; then
+            TMPDIR=$(mktemp -d)
+            (cd "$TMPDIR" && ar x "$DEB" _gpgorigin && gpg --verify _gpgorigin)
           else
-            # manual check: _gpgorigin present and valid
-            ar t "$DEB" | grep -q '_gpgorigin' || { echo "::error::no _gpgorigin; unsigned deb"; exit 1; }
-            mkdir -p /tmp/debchk && (cd /tmp/debchk && ar x "$DEB" _gpgorigin && gpg --verify _gpgorigin) || { echo "::error::gpg verification failed"; exit 1; }
+            echo "::error::unsigned .deb"; exit 1
           fi
 
-      - name: Checksums
-        run: |
-          set -e
-          (cd dist && sha256sum * > SHA256SUMS.txt)
-          cat dist/SHA256SUMS.txt
-
-      - name: Create/Edit Release and Upload
+      - name: Checksums + Upload
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*.deb
-            dist/*.zip
             dist/SHA256SUMS.txt
           generate_release_notes: true
         env:
