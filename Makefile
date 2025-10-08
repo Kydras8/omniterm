@@ -40,10 +40,11 @@ release:
 	@git push origin $${TAG}
 	@# create or update the release notes
 	@gh release view $${TAG} >/dev/null 2>&1 \\
-	  && gh release edit $${TAG} --title "OmniTerm $${TAG}" --notes-file launch_post.md \\
-	  || gh release create $${TAG} --title "OmniTerm $${TAG}" --notes-file launch_post.md
+	  && gh release edit $${TAG} --title "OmniTerm $${TAG}" $(NOTES) \\
+	  || gh release create $${TAG} --title "OmniTerm $${TAG}" $(NOTES)
 
 release-notes:
 	@: $${TAG?Usage: make release-notes TAG=vX.Y.Z}
 	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w
-	gh release edit $${TAG} --title "OmniTerm $${TAG}" --notes-file launch_post.md
+	gh release edit $${TAG} --title "OmniTerm $${TAG}" $(NOTES)
+NOTES := $(shell [ -f launch_post.md ] && echo "$(NOTES)" || echo "")
