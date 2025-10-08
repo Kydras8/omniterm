@@ -18,9 +18,34 @@ jobs:
             kyboost bin .zshrc.kydras .tmux.conf.kydras assets \
             thunar-open-omni.action kydras-omninterm.desktop \
             kydras-omninterm-gnome.desktop kydras-omninterm-konsole.desktop \
-            README.md LICENSE 2>/dev/null || true
+            install.sh uninstall.sh scripts README.md LICENSE MINISIGN_PUBLIC_KEY.txt \
+            2>/dev/null || true
           echo "ZIP=$ZIP" >> $GITHUB_ENV
-      - name: Move/force-update 'nightly' tag on origin
+          sha256sum "$ZIP" > dist/SHA256SUMS.txt
+      - name: Install minisign
+        run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: Try to restore minisign private key (optional)
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+        run: |
+          set -e
+          if [ -n "$MINISIGN_SECRET_KEY" ]; then
+            echo "$MINISIGN_SECRET_KEY" | base64 -d > minisign.key
+            chmod 600 minisign.key
+          else
+            echo "MINISIGN_SECRET_KEY missing — will skip signing."
+          fi
+      - name: Maybe sign checksum (skips if no key)
+        env:
+          MINISIGN_PASSPHRASE: ${{ secrets.MINISIGN_PASSPHRASE }}
+        run: |
+          set -e
+          if [ -f minisign.key ]; then
+            minisign -S -s minisign.key -m dist/SHA256SUMS.txt -x dist/SHA256SUMS.txt.minisig -p -t "OmniTerm nightly sums" < /dev/null
+          else
+            echo "Skipping signing (no minisign.key)"
+          fi
+      - name: Move/force-update nightly tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -33,6 +58,9 @@ jobs:
           name: Nightly
           prerelease: true
           draft: false
-          files: ${{ env.ZIP }}
+          files: |
+            ${{ env.ZIP }}
+            dist/SHA256SUMS.txt
+            dist/SHA256SUMS.txt.minisig
           make_latest: false
           generate_release_notes: false
