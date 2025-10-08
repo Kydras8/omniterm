@@ -16,7 +16,6 @@ permissions:
 jobs:
   build-release:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,8 +30,8 @@ jobs:
       - name: Import GPG key
         if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          gpg --list-secret-keys
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import || true
+          gpg --list-secret-keys || true
 
       - name: Build .deb package
         run: |
@@ -51,7 +50,7 @@ jobs:
           for DEB in dist/*.deb; do
             if command -v dpkg-sig >/dev/null 2>&1 && [ -n "$KEYID" ]; then
               echo "Signing with dpkg-sig key $KEYID -> $DEB"
-              dpkg-sig --sign builder -k "$KEYID" "$DEB"
+              dpkg-sig --sign builder -k "$KEYID" "$DEB" || echo "::warning::sign failed"
             else
               echo "::warning::No signing key found — skipping signature"
             fi
