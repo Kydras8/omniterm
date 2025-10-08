@@ -27,3 +27,9 @@ Zsh-first terminal upgrade for Kali/Debian with tmux session, stealth toggles, a
 </p>
 
 > To regenerate the demo GIF locally, run: `./scripts/record_demo.sh` (requires asciinema + agg).
+
+**Install (Debian/Kali)**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kydras8/omniterm/main/kyboost | zsh
+```
