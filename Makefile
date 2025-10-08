@@ -1,41 +1,29 @@
-SHELL := /bin/bash
-PACKAGE := omniterm
-DIST := dist
+DEB_VERSION ?= 1.0.5
+DEB_ARCH ?= amd64
+PACKAGE = omniterm
+DEB_DIR = $(PACKAGE)_$(DEB_VERSION)_$(DEB_ARCH)
+DIST_DIR = dist
 
-.PHONY: all install uninstall package release lint doctor
+.PHONY: deb clean install uninstall
 
-all: package
+deb:
+	@echo "[Kydras] Building .deb package..."
+	rm -rf $(DIST_DIR)/$(DEB_DIR)
+	mkdir -p $(DIST_DIR)/$(DEB_DIR)/usr/local/bin
+	mkdir -p $(DIST_DIR)/$(DEB_DIR)/usr/share/doc/$(PACKAGE)
+	install -m 0755 kyboost $(DIST_DIR)/$(DEB_DIR)/usr/local/bin/
+	install -m 0644 README.md $(DIST_DIR)/$(DEB_DIR)/usr/share/doc/$(PACKAGE)/
+	cp -r assets $(DIST_DIR)/$(DEB_DIR)/usr/share/doc/$(PACKAGE)/assets
+	mkdir -p $(DIST_DIR)/$(DEB_DIR)/DEBIAN
+	cp debian/control $(DIST_DIR)/$(DEB_DIR)/DEBIAN/
+	dpkg-deb --build $(DIST_DIR)/$(DEB_DIR)
+	@echo "Built package: $(DIST_DIR)/$(DEB_DIR).deb"
+
+clean:
+	rm -rf $(DIST_DIR)
 
 install:
-	./install.sh
+	sudo dpkg -i $(DIST_DIR)/$(DEB_DIR).deb || true
 
 uninstall:
-	./uninstall.sh
-
-package:
-	mkdir -p $(DIST)
-	zip -r $(DIST)/$(PACKAGE)-main.zip \
-		kyboost bin .zshrc.kydras .tmux.conf.kydras assets \
-		thunar-open-omni.action kydras-omninterm*.desktop \
-		install.sh uninstall.sh scripts README.md LICENSE \
-		2>/dev/null || true
-	@echo "Built $(DIST)/$(PACKAGE)-main.zip"
-
-release:
-	@if [ -z "$$TAG" ]; then echo "Usage: make release TAG=v1.0.1"; exit 1; fi
-	mkdir -p $(DIST)
-	zip -r $(DIST)/$(PACKAGE)-$$TAG.zip \
-		kyboost bin .zshrc.kydras .tmux.conf.kydras assets \
-		thunar-open-omni.action kydras-omninterm*.desktop \
-		install.sh uninstall.sh scripts README.md LICENSE \
-		2>/dev/null || true
-	sha256sum $(DIST)/$(PACKAGE)-$$TAG.zip | tee $(DIST)/SHA256SUMS.txt
-	@echo "Package ready in $(DIST). Push tag $$TAG to trigger GH release workflow."
-
-lint:
-	@command -v shellcheck >/dev/null || (echo "shellcheck not found"; exit 0)
-	shellcheck -S warning kyboost || true
-	@[ -d bin ] && find bin -maxdepth 1 -type f -perm -111 -exec shellcheck -S warning {} \; || true
-
-doctor:
-	./scripts/kydoctor.sh
+	sudo apt remove $(PACKAGE) -y || true
