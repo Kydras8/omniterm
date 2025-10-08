@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Kydras OmniTerm (GNOME)
+Comment=Attach/start the OmniTerm tmux session (GNOME Terminal)
+Exec=gnome-terminal -- bash -lc 'tmux attach -t omni || tmux new -s omni'
+Icon=utilities-terminal
+Terminal=false
+Type=Application
+Categories=Utility;Terminal;

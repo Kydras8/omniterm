@@ -1,29 +1,21 @@
 name: omniterm-ci
-
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+  push: { branches: [ main ] }
+  pull_request: { branches: [ main ] }
 jobs:
   lint-and-artifact:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
-
       - name: Lint shell scripts
         run: |
           set -e
           shellcheck -S warning kyboost || true
           if [ -d bin ]; then
-            find bin -type f -maxdepth 1 -perm -111 -print -exec shellcheck -S warning {} \; || true
+            find bin -maxdepth 1 -type f -perm -111 -print -exec shellcheck -S warning {} \; || true
           fi
-
       - name: Build artifact zip
         run: |
           set -e
@@ -32,9 +24,9 @@ jobs:
           zip -r "$ZIP" \
             kyboost bin .zshrc.kydras .tmux.conf.kydras assets \
             thunar-open-omni.action kydras-omninterm.desktop \
+            kydras-omninterm-gnome.desktop kydras-omninterm-konsole.desktop \
             README.md LICENSE 2>/dev/null || true
           ls -lah dist
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

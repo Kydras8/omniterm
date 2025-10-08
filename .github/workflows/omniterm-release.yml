@@ -1,20 +1,14 @@
 name: omniterm-release
-
 on:
   push:
-    tags:
-      - 'v*'
-
+    tags: [ 'v*' ]
 permissions:
   contents: write
-
 jobs:
   build-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Package release zip
         run: |
           set -e
@@ -24,14 +18,17 @@ jobs:
           zip -r "$ZIP" \
             kyboost bin .zshrc.kydras .tmux.conf.kydras assets \
             thunar-open-omni.action kydras-omninterm.desktop \
+            kydras-omninterm-gnome.desktop kydras-omninterm-konsole.desktop \
             README.md LICENSE 2>/dev/null || true
+          sha256sum "$ZIP" > dist/SHA256SUMS.txt
           echo "ZIP=$ZIP" >> $GITHUB_ENV
-
-      - name: Create GitHub Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
+          files: |
+            ${{ env.ZIP }}
+            dist/SHA256SUMS.txt
           prerelease: false
-          files: ${{ env.ZIP }}
+          draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
