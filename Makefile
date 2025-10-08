@@ -27,3 +27,23 @@ install:
 
 uninstall:
 	sudo apt remove $(PACKAGE) -y || true
+
+.PHONY: release release-notes
+release:
+	@: $${TAG?Usage: make release TAG=vX.Y.Z}
+	@echo "[Kydras] Preparing release $${TAG}"
+	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w
+	@git diff --quiet || (echo "[Kydras] Uncommitted changes present. Commit or stash before releasing."; exit 1)
+	@git fetch --all --tags
+	@git push -u origin main || true
+	@git tag -a $${TAG} -m "OmniTerm $${TAG}" || true
+	@git push origin $${TAG}
+	@# create or update the release notes
+	@gh release view $${TAG} >/dev/null 2>&1 \\
+	  && gh release edit $${TAG} --title "OmniTerm $${TAG}" --notes-file launch_post.md \\
+	  || gh release create $${TAG} --title "OmniTerm $${TAG}" --notes-file launch_post.md
+
+release-notes:
+	@: $${TAG?Usage: make release-notes TAG=vX.Y.Z}
+	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w
+	gh release edit $${TAG} --title "OmniTerm $${TAG}" --notes-file launch_post.md
