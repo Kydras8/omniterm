@@ -1,0 +1,2 @@
+# Relax some rules for portability of here-docs
+disable=SC1090
