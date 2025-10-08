@@ -54,3 +54,11 @@ verify-release:
 	@: $${TAG?Usage: make verify-release TAG=vX.Y.Z}
 	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w
 	./scripts/verify_release.sh $${TAG}
+
+.PHONY: nightly
+nightly:
+	@git fetch --all --tags
+	@echo "[Kydras] Moving nightly tag to HEAD of main"
+	@git tag -f nightly
+	@git push origin :refs/tags/nightly 2>/dev/null || true
+	@git push origin nightly
