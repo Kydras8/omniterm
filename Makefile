@@ -48,3 +48,9 @@ release-notes:
 	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w
 	gh release edit $${TAG} --title "OmniTerm $${TAG}" $(NOTES)
 NOTES := $(shell [ -f launch_post.md ] && echo "$(NOTES)" || echo "")
+
+.PHONY: verify-release
+verify-release:
+	@: $${TAG?Usage: make verify-release TAG=vX.Y.Z}
+	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w
+	./scripts/verify_release.sh $${TAG}
