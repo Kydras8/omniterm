@@ -16,29 +16,82 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up environment
+      - name: Set up deps
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y zsh tmux bash coreutils make debhelper zip
+          sudo apt-get install -y zsh tmux bash coreutils make debhelper zip gnupg jq binutils
 
-      - name: Build .deb package
+      - name: Build .deb & zip (version from tag)
         run: |
+          set -e
+          VER="${GITHUB_REF_NAME#v}"
+          echo "Version from tag: $VER"
           make clean
-          make deb
-          echo "Built .deb file:"
-          ls -lh dist/*.deb || true
-
-      - name: Build zip artifact
-        run: |
+          make deb DEB_VERSION="$VER"
           mkdir -p dist
-          zip -r "dist/omniterm-${GITHUB_REF_NAME}.zip" kyboost assets install.sh uninstall.sh README.md || true
-          ls -lh dist/*.zip || true
+          zip -r "dist/omniterm-${VER}.zip" kyboost assets install.sh uninstall.sh README.md LICENSE 2>/dev/null || true
+          ls -lh dist
 
-      - name: Upload release assets
+      - name: Import GPG private key (if present)
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
+          gpg --list-secret-keys --keyid-format=long || true
+
+      - name: Sign .deb (dpkg-sig preferred; fallback debsigs)
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -e
+          if ! command -v dpkg-sig >/dev/null 2>&1; then
+            sudo apt-get install -y dpkg-sig || sudo apt-get install -y debsigs debsig-verify
+          fi
+          KEYID=$(gpg --list-secret-keys --keyid-format=long | awk '/^sec/{print $2}' | sed 's|.*/||' | head -n1 || true)
+          for DEB in dist/*.deb; do
+            if command -v dpkg-sig >/dev/null 2>&1 && [ -n "$KEYID" ]; then
+              echo "Signing with dpkg-sig key $KEYID -> $DEB"
+              if [ -n "${GPG_PASSPHRASE:-}" ]; then
+                printf '%s' "$GPG_PASSPHRASE" | dpkg-sig --sign builder -k "$KEYID" "$DEB" --passphrase-fd 0
+              else
+                dpkg-sig --sign builder -k "$KEYID" "$DEB"
+              fi
+            elif command -v debsigs >/dev/null 2>&1 && [ -n "$KEYID" ]; then
+              echo "Signing with debsigs key $KEYID -> $DEB"
+              debsigs --sign=origin -k "$KEYID" "$DEB"
+            else
+              echo "::warning::No signing tool/key available — .deb will be unsigned"
+            fi
+          done
+
+      - name: Strict verify: fail if .deb not signed
+        run: |
+          set -e
+          DEB=$(ls dist/*.deb | head -n1)
+          echo "Verifying signature on $DEB"
+          if command -v dpkg-sig >/dev/null 2>&1; then
+            dpkg-sig --verify "$DEB" | tee /tmp/verify.txt || true
+            grep -q 'GOODSIG' /tmp/verify.txt || { echo "::error::dpkg-sig did not report GOODSIG"; exit 1; }
+          else
+            # manual check: _gpgorigin present and valid
+            ar t "$DEB" | grep -q '_gpgorigin' || { echo "::error::no _gpgorigin; unsigned deb"; exit 1; }
+            mkdir -p /tmp/debchk && (cd /tmp/debchk && ar x "$DEB" _gpgorigin && gpg --verify _gpgorigin) || { echo "::error::gpg verification failed"; exit 1; }
+          fi
+
+      - name: Checksums
+        run: |
+          set -e
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+
+      - name: Create/Edit Release and Upload
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*.deb
             dist/*.zip
+            dist/SHA256SUMS.txt
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
