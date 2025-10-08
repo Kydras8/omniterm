@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 11)
 Standards-Version: 4.5.0
 Homepage: https://github.com/Kydras8/omniterm
 Package: omniterm
-Version: 1.0.5
+Version: 1.0.10
 Architecture: amd64
 Depends: zsh, tmux, bash, coreutils
 Description: Kydras OmniTerm — zsh-first tmux-enhanced terminal for Kali/Debian.
