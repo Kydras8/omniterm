@@ -62,3 +62,23 @@ nightly:
 	@git tag -f nightly
 	@git push origin :refs/tags/nightly 2>/dev/null || true
 	@git push origin nightly
+.PHONY: publish ensure-release-notes
+publish:
+	@set -e; \
+	TAG="$${TAG:-v$$(grep -oP '(?<=^Version: ).*' debian/control | head -n1)}"; \
+	echo "[Kydras] Publishing $$TAG"; \
+	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w; \
+	git diff --quiet || (echo "[Kydras] Uncommitted changes present."; exit 1); \
+	git push --no-tags -u origin main || true; \
+	(git tag -a $$TAG -m "OmniTerm $$TAG" 2>/dev/null || true); \
+	git push origin $$TAG || true; \
+	$(MAKE) ensure-release-notes TAG=$$TAG; \
+	echo "[Kydras] publish complete for $$TAG"
+
+ensure-release-notes:
+	@set -e; \
+	: $${TAG?Usage: make ensure-release-notes TAG=vX.Y.Z}; \
+	gh auth status >/dev/null 2>&1 || gh auth login -s repo -w; \
+	(gh release view $$TAG >/dev/null 2>&1 \
+	 && gh release edit $$TAG --title "OmniTerm $$TAG" --notes-file launch_post.md) \
+	|| gh release create $$TAG --title "OmniTerm $$TAG" --notes-file launch_post.md
