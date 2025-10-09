@@ -1,4 +1,4 @@
-# Kydras OmniTerm — v1.0.14
+# Kydras OmniTerm — v1.0.15
 
 God-mode terminal for Kali/Debian: zsh-first, tmux session `omni`, stealth toggles, desktop/Thunar launchers, CI builds, and signed .deb releases.
 
