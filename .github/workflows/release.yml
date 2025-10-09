@@ -74,6 +74,21 @@ jobs:
           ls -lh
 
       - name: Upload release assets
+      - name: Ensure launch_post.md exists
+        run: |
+          set -e
+          if [ ! -f launch_post.md ]; then
+            echo "::notice::launch_post.md missing — generating from README.md"
+            if [ -f README.md ]; then
+              {
+                echo "# OmniTerm $(date +%Y-%m-%d)"
+                echo
+                sed -n "1,40p" README.md
+              } > launch_post.md
+            else
+              echo "OmniTerm release" > launch_post.md
+            fi
+          fi
       - name: Update GitHub Release notes from launch_post.md
         run: |
           set -e
