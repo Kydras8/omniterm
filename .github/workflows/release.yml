@@ -74,6 +74,18 @@ jobs:
           ls -lh
 
       - name: Upload release assets
+      - name: Update GitHub Release notes from launch_post.md
+        run: |
+          set -e
+          TAG=${{ github.event.inputs.tag || github.ref_name }}
+          echo Updating release notes for $TAG
+          if [ -f launch_post.md ]; then
+            gh release edit "$TAG" --title "OmniTerm $TAG" --notes-file launch_post.md || \
+              gh release create "$TAG" --title "OmniTerm $TAG" --notes-file launch_post.md
+          else
+            echo '::warning::launch_post.md missing — skipping release notes update'
+          fi
+          echo Done updating release notes
         uses: softprops/action-gh-release@v2
         with:
           files: |
