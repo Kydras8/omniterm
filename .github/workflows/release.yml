@@ -1,112 +1,15 @@
-name: omniterm-release
-
+name: release
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (e.g. v1.0.12)'
-        required: true
-
-permissions:
-  contents: write
-
+        description: 'Tag to build (e.g. v1.2.3)'
+        required: false
 jobs:
-  build-release:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
-
-      - name: Setup environment
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y make zsh dpkg-dev dpkg-sig jq curl gpg
-
-      - name: Import GPG key
-        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import || true
-          gpg --list-secret-keys || true
-
-      - name: Build .deb package
-        run: |
-          set -e
-          VER="${{ github.event.inputs.tag || github.ref_name }}"
-          VER="${VER#v}"
-          echo "Building OmniTerm $VER"
-          make clean
-          make deb DEB_VERSION="$VER"
-          ls -lh dist
-
-      - name: Sign .deb package
-        run: |
-          set -e
-          KEYID=$(gpg --list-secret-keys --keyid-format=long | awk '/^sec/{print $2}' | sed 's|.*/||' | head -n1 || true)
-          for DEB in dist/*.deb; do
-            if command -v dpkg-sig >/dev/null 2>&1 && [ -n "$KEYID" ]; then
-              echo "Signing with dpkg-sig key $KEYID -> $DEB"
-              dpkg-sig --sign builder -k "$KEYID" "$DEB" || echo "::warning::sign failed"
-            else
-              echo "::warning::No signing key found — skipping signature"
-            fi
-          done
-
-      - name: Verify signature
-        run: |
-          set -e
-          DEB=$(ls dist/*.deb | head -n1)
-          echo "Verifying $DEB"
-          dpkg-sig --verify "$DEB" || echo "::warning::dpkg-sig verify skipped"
-
-      - name: Generate checksums
-        run: |
-          cd dist
-          sha256sum *.deb > SHA256SUMS.txt
-          gpg --clearsign -o SHA256SUMS.txt.minisig SHA256SUMS.txt
-          ls -lh
-
-      - name: Upload release assets
-      - name: Ensure launch_post.md exists
-        run: |
-          set -e
-          if [ ! -f launch_post.md ]; then
-            echo "::notice::launch_post.md missing — generating from README.md"
-            if [ -f README.md ]; then
-              {
-                echo "# OmniTerm $(date +%Y-%m-%d)"
-                echo
-                sed -n "1,40p" README.md
-              } > launch_post.md
-            else
-              echo "OmniTerm release" > launch_post.md
-            fi
-          fi
-      - name: Update GitHub Release notes from launch_post.md
-        run: |
-          set -e
-          TAG=${{ github.event.inputs.tag || github.ref_name }}
-          echo Updating release notes for $TAG
-          if [ -f launch_post.md ]; then
-            gh release edit "$TAG" --title "OmniTerm $TAG" --notes-file launch_post.md || \
-              gh release create "$TAG" --title "OmniTerm $TAG" --notes-file launch_post.md
-          else
-            echo '::warning::launch_post.md missing — skipping release notes update'
-          fi
-          echo Done updating release notes
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.deb
-            dist/SHA256SUMS.txt
-            dist/SHA256SUMS.txt.minisig
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  call-shared:
+    uses: Kydras8/.github/.github/workflows/reusable-release.yml@main
+    with:
+      tag: ${{ inputs.tag }}
+    secrets: inherit
